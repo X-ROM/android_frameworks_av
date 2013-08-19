@@ -58,22 +58,32 @@ ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
     LOCAL_C_INCLUDES += \
             $(TOP)/hardware/qcom/media-caf/mm-core/inc
     else
-    LOCAL_C_INCLUDES += \
-            $(TOP)/hardware/qcom/media/mm-core/inc
+        ifeq ($(TARGET_QCOM_DISPLAY_VARIANT),legacy)
+            LOCAL_C_INCLUDES += \
+                $(TOP)/hardware/qcom/media-legacy/mm-core/inc
+        else
+            LOCAL_C_INCLUDES += \
+                $(TOP)/hardware/qcom/media/mm-core/inc
+        endif
     endif
 endif
 
 LOCAL_MODULE:= libmediaplayerservice
 
 ifeq ($(TARGET_ENABLE_QC_AV_ENHANCEMENTS),true)
-    LOCAL_CFLAGS += -DENABLE_QC_AV_ENHANCEMENTS
+    LOCAL_CFLAGS += -DENABLE_QC_AV_ENHANCEMENTS -fno-strict-aliasing
     LOCAL_C_INCLUDES += $(TOP)/frameworks/av/include/media
     ifeq ($(TARGET_QCOM_MEDIA_VARIANT),caf)
         LOCAL_C_INCLUDES += \
             $(TOP)/hardware/qcom/media-caf/mm-core/inc
     else
-        LOCAL_C_INCLUDES += \
-            $(TOP)/hardware/qcom/media/mm-core/inc
+        ifeq ($(TARGET_QCOM_DISPLAY_VARIANT),legacy)
+            LOCAL_C_INCLUDES += \
+                $(TOP)/hardware/qcom/media-legacy/mm-core/inc
+        else
+            LOCAL_C_INCLUDES += \
+                $(TOP)/hardware/qcom/media/mm-core/inc
+        endif
     endif
 endif #TARGET_ENABLE_QC_AV_ENHANCEMENTS
 
