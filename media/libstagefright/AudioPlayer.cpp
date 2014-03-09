@@ -146,6 +146,12 @@ status_t AudioPlayer::start(bool sourceAlreadyStarted) {
             ALOGE("Couldn't map mime type \"%s\" to a valid AudioSystem::audio_format", mime);
             audioFormat = AUDIO_FORMAT_INVALID;
         } else {
+#ifdef QCOM_HARDWARE
+            // Override audio format for PCM offload
+            if (audioFormat == AUDIO_FORMAT_PCM_16_BIT) {
+                audioFormat = AUDIO_FORMAT_PCM_16_BIT_OFFLOAD;
+            }
+#endif
             ALOGV("Mime type \"%s\" mapped to audio_format 0x%x", mime, audioFormat);
         }
     }
@@ -376,7 +382,11 @@ void AudioPlayer::reset() {
     // to instantiate it again.
     // When offloading, the OMX component is not used so this hack
     // is not needed
-    if (!useOffload()) {
+    sp<MetaData> format = mSource->getFormat();
+    const char *mime;
+    format->findCString(kKeyMIMEType, &mime);
+    if (!useOffload() ||
+        (useOffload() && !strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_RAW))) {
         wp<MediaSource> tmp = mSource;
         mSource.clear();
         while (tmp.promote() != NULL) {
@@ -799,27 +809,16 @@ int64_t AudioPlayer::getRealTimeUsLocked() const {
         return mPositionTimeRealUs;
 }
 
-int64_t AudioPlayer::getOutputPlayPositionUs_l()
+int64_t AudioPlayer::getOutputPlayPositionUs_l() const
 {
     uint32_t playedSamples = 0;
-    uint32_t sampleRate;
     if (mAudioSink != NULL) {
         mAudioSink->getPosition(&playedSamples);
-        sampleRate = mAudioSink->getSampleRate();
     } else {
         mAudioTrack->getPosition(&playedSamples);
-        sampleRate = mAudioTrack->getSampleRate();
-    }
-    if (sampleRate != 0) {
-        mSampleRate = sampleRate;
     }
 
-    int64_t playedUs;
-    if (mSampleRate != 0) {
-        playedUs = (static_cast<int64_t>(playedSamples) * 1000000 ) / mSampleRate;
-    } else {
-        playedUs = 0;
-    }
+    const int64_t playedUs = (static_cast<int64_t>(playedSamples) * 1000000 ) / mSampleRate;
 
     // HAL position is relative to the first buffer we sent at mStartPosUs
     const int64_t renderedDuration = mStartPosUs + playedUs;
